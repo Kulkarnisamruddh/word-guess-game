@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WORDLE — Five Letter Word Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0d0f;
+    --surface:  #161618;
+    --surface2: #1e1e22;
+    --border:   #2a2a30;
+    --border2:  #3a3a42;
+    --text:     #e8e8f0;
+    --text2:    #888898;
+    --text3:    #555566;
+    --green:    #4ade80;
+    --green-bg: #14532d;
+    --yellow:   #fbbf24;
+    --yellow-bg:#451a03;
+    --gray:     #52525b;
+    --gray-bg:  #1c1c20;
+    --accent:   #6366f1;
+    --accent2:  #818cf8;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Outfit', sans-serif;
+  }
+
+  html { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px 40px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Grid background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Header ── */
+  header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 26px;
+    letter-spacing: 6px;
+    color: var(--text);
+    text-decoration: none;
+    position: relative;
+  }
+  .logo::after {
+    content: '_';
+    color: var(--accent2);
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .header-meta {
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.7;
+  }
+  .header-meta span { color: var(--text2); }
+
+  /* ── How to play toggle ── */
+  #how-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color .2s, color .2s;
+  }
+  #how-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+  #how-panel {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    display: none;
+    animation: slideDown .2s ease;
+  }
+  #how-panel.open { display: block; }
+  @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  #how-panel h3 { font-family: var(--mono); font-size: 13px; color: var(--text2); margin-bottom: 10px; letter-spacing: 2px; }
+  .legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text2); }
+  .legend-tile { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; font-weight: bold; }
+  .legend-tile.correct  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green); }
+  .legend-tile.present  { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+  .legend-tile.absent   { background: var(--gray-bg);   color: var(--text3);  border: 1px solid var(--gray); }
+
+  /* ── Question card ── */
+  #question-card {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    position: relative;
+    overflow: hidden;
+  }
+  #question-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent), var(--accent2));
+    border-radius: 2px 0 0 2px;
+  }
+  .q-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent2);
+    letter-spacing: 2px;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+  #question-text {
+    font-size: 15px;
+    color: var(--text);
+    line-height: 1.55;
+    font-weight: 400;
+  }
+
+  /* ── Board ── */
+  #board {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+
+  .row { display: flex; gap: 6px; }
+
+  .tile {
+    width: 58px; height: 58px;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 24px;
+    color: var(--text);
+    text-transform: uppercase;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: border-color .1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .tile.filled { border-color: var(--border2); }
+  .tile.active-row { border-color: var(--text3); }
+
+  .tile.correct { background: var(--green-bg);  color: var(--green);  border-color: var(--green);  }
+  .tile.present { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+  .tile.absent  { background: var(--gray-bg);   color: var(--text3);  border-color: var(--gray);   }
+
+  .tile.pop  { animation: pop .1s ease; }
+  .tile.flip { animation: flip .4s ease forwards; }
+  .tile.shake { animation: shake .4s ease; }
+  .tile.bounce { animation: bounce .6s ease; }
+
+  @keyframes pop    { 0%{transform:scale(1)} 50%{transform:scale(1.12)} 100%{transform:scale(1)} }
+  @keyframes flip   { 0%{transform:rotateX(0)} 50%{transform:rotateX(-90deg)} 100%{transform:rotateX(0)} }
+  @keyframes shake  { 0%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} 100%{transform:translateX(0)} }
+  @keyframes bounce { 0%{transform:translateY(0)} 30%{transform:translateY(-12px)} 50%{transform:translateY(0)} 70%{transform:translateY(-6px)} 100%{transform:translateY(0)} }
+
+  /* ── Status bar ── */
+  #status-bar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 0 2px;
+  }
+  #attempts-left {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text3);
+    letter-spacing: 1px;
+  }
+  #attempts-left span { color: var(--accent2); }
+  #status-msg {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity .2s;
+    text-align: right;
+  }
+  #status-msg.show { opacity: 1; }
+  #status-msg.win  { color: var(--green); }
+  #status-msg.lose { color: var(--yellow); }
+
+  /* ── Keyboard ── */
+  #keyboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-bottom: 24px;
+  }
+  .kb-row { display: flex; gap: 5px; }
+
+  .key {
+    height: 50px;
+    min-width: 34px;
+    padding: 0 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s, border-color .15s, transform .08s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .key:active { transform: scale(0.93); }
+  .key.wide { min-width: 54px; font-size: 11px; }
+
+  .key.correct { background: var(--green-bg);  color: var(--green);  border-color: var(--green); }
+  .key.present { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+  .key.absent  { background: var(--gray-bg);   color: var(--text3);  border-color: var(--gray); }
+
+  /* ── New game button ── */
+  #new-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 32px;
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: border-color .2s, color .2s, background .2s;
+  }
+  #new-btn:hover { border-color: var(--accent); color: var(--accent2); background: rgba(99,102,241,.08); }
+  #new-btn:active { transform: scale(0.97); }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 32px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    text-align: center;
+    letter-spacing: 1px;
+    line-height: 2;
+  }
+  footer a { color: var(--text3); text-decoration: none; transition: color .2s; }
+  footer a:hover { color: var(--accent2); }
+
+  /* ── Responsive ── */
+  @media (max-width: 400px) {
+    .tile { width: 50px; height: 50px; font-size: 20px; }
+    .key  { height: 44px; min-width: 30px; font-size: 12px; }
+    .key.wide { min-width: 46px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header>
+    <div class="logo">WORDLE</div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button id="how-btn" onclick="toggleHow()">HOW TO PLAY</button>
+    </div>
+  </header>
+
+  <div id="how-panel">
+    <h3>// HOW TO PLAY</h3>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-tile correct">W</div> Correct letter, correct spot</div>
+      <div class="legend-item"><div class="legend-tile present">I</div> Letter in word, wrong spot</div>
+      <div class="legend-item"><div class="legend-tile absent">U</div> Letter not in word</div>
+    </div>
+    <p style="margin-top:12px;font-size:13px;color:var(--text3);line-height:1.6">
+      Read the clue, then guess the 5-letter word.<br/>You have 6 attempts. Type or tap to play.
+    </p>
+  </div>
+
+  <div id="question-card">
+    <div class="q-label">CLUE</div>
+    <div id="question-text">Loading...</div>
+  </div>
+
+  <div id="board"></div>
+
+  <div id="status-bar">
+    <div id="attempts-left"></div>
+    <div id="status-msg"></div>
+  </div>
+
+  <div id="keyboard"></div>
+  <button id="new-btn" onclick="newGame()">[ NEW GAME ]</button>
+
+  <footer>
+    <div>Five-letter word guessing game</div>
+    <div><a href="https://github.com" target="_blank" rel="noopener noreferrer">github</a> &nbsp;·&nbsp; built with vanilla js</div>
+  </footer>
+
+</div>
+
+<script>
+const WORDS = {
+  "GUESS":"What do you do when you try to figure something out?",
+  "HOUSE":"What building do people live in?",
+  "ROSES":"What red flowers are given on Valentine's Day?",
+  "CATCH":"What do you do with a ball in baseball?",
+  "WORLD":"What is the planet we live on called?",
+  "WORDS":"What are letters combined together called?",
+  "APPLE":"What red or green fruit grows on trees?",
+  "BEACH":"Where do you go to swim in the ocean?",
+  "BRAVE":"What word means courageous or fearless?",
+  "CLOUD":"What floats in the sky and brings rain?",
+  "DANCE":"What do you do to music at a party?",
+  "EARTH":"What planet do we live on?",
+  "FUNNY":"What word describes something that makes you laugh?",
+  "GLASS":"What transparent material do windows use?",
+  "HEART":"What organ pumps blood in your body?",
+  "IMAGE":"What word means a picture or photograph?",
+  "JOKER":"Who is the funny character in a deck of cards?",
+  "KNIFE":"What sharp tool do you use to cut food?",
+  "LIGHT":"What makes things visible and bright?",
+  "MAGIC":"What word describes mysterious tricks and spells?",
+  "NIGHT":"What time of day comes after evening?",
+  "OCEAN":"What large body of salt water covers most of Earth?",
+  "PIANO":"What musical instrument has black and white keys?",
+  "QUICK":"What word means fast or speedy?",
+  "RIVER":"What flows from mountains to the sea?",
+  "SMILE":"What do you do when you're happy?",
+  "TIGER":"What big cat has orange fur with black stripes?",
+  "UNITY":"What word means togetherness or harmony?",
+  "VALUE":"What word means worth or importance?",
+  "WATER":"What clear liquid do you drink?",
+  "YOUTH":"What word means the time when you're young?",
+  "ZEBRA":"What black and white striped animal lives in Africa?",
+  "BREAD":"What food do you make from flour and bake?",
+  "CHAIR":"What furniture do you sit on?",
+  "DREAM":"What do you see when you sleep?",
+  "EAGLE":"What bird is a symbol of freedom and strength?",
+  "FLAME":"What is the visible part of fire?",
+  "GRACE":"What word means elegance or beauty in movement?",
+  "HAPPY":"What word describes feeling joyful?",
+  "IVORY":"What material comes from elephant tusks?",
+  "JUMPS":"What action means to leap into the air?",
+  "KNEEL":"What do you do when you bend down on one knee?",
+  "LEMON":"What yellow sour fruit makes lemonade?",
+  "MUSIC":"What art form uses sounds and melodies?",
+  "NURSE":"Who takes care of patients in a hospital?",
+  "OLIVE":"What small green fruit grows on trees?",
+  "PEACE":"What word means calm and no war?",
+  "QUEEN":"What is a female ruler called?",
+  "ROBOT":"What mechanical being can do tasks automatically?",
+  "SPACE":"What is the area beyond Earth's atmosphere?",
+  "THREE":"What number comes after two?",
+  "URBAN":"What word describes city areas?",
+  "VIVID":"What word means bright and intense?",
+  "WHEAT":"What grain is used to make bread?",
+  "YACHT":"What is a luxury boat called?",
+  "ZONES":"What word means areas or regions?",
+  "SEVEN":"What number comes after six?",
+  "EIGHT":"What number comes after seven?",
+  "WHERE":"What question word asks about location?",
+  "WHICH":"What question word asks you to choose?",
+  "WITCH":"What is a magical woman with a broomstick?",
+  "MODEL":"What word means a representation or example?"
+};
+
+const MAX = 6;
+let secret = '', attempts = [], input = '', gameOver = false, keyStates = {}, locked = false;
+
+function pickWord() {
+  const keys = Object.keys(WORDS);
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
+function toggleHow() {
+  const p = document.getElementById('how-panel');
+  p.classList.toggle('open');
+  document.getElementById('how-btn').textContent = p.classList.contains('open') ? 'CLOSE' : 'HOW TO PLAY';
+}
+
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (let r = 0; r < MAX; r++) {
+    const row = document.createElement('div');
+    row.className = 'row'; row.id = 'row-' + r;
+    for (let c = 0; c < 5; c++) {
+      const t = document.createElement('div');
+      t.className = 'tile'; t.id = `t${r}${c}`;
+      row.appendChild(t);
+    }
+    board.appendChild(row);
+  }
+  highlightActiveRow();
+}
+
+function highlightActiveRow() {
+  for (let r = 0; r < MAX; r++) {
+    const row = document.getElementById('row-' + r);
+    if (!row) continue;
+    row.querySelectorAll('.tile').forEach(t => {
+      if (r === attempts.length && !gameOver) t.classList.add('active-row');
+      else t.classList.remove('active-row');
+    });
+  }
+}
+
+function buildKeyboard() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = '';
+  const rows = [
+    ['Q','W','E','R','T','Y','U','I','O','P'],
+    ['A','S','D','F','G','H','J','K','L'],
+    ['ENTER','Z','X','C','V','B','N','M','⌫']
+  ];
+  rows.forEach(row => {
+    const el = document.createElement('div'); el.className = 'kb-row';
+    row.forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (k.length > 1 ? ' wide' : '');
+      btn.textContent = k; btn.dataset.key = k; btn.id = 'kb-' + k;
+      btn.addEventListener('click', () => handleKey(k));
+      el.appendChild(btn);
+    });
+    kb.appendChild(el);
+  });
+}
+
+function updateKeyboard() {
+  Object.entries(keyStates).forEach(([k, st]) => {
+    const btn = document.getElementById('kb-' + k);
+    if (btn) btn.className = 'key' + (k.length > 1 ? ' wide' : '') + ' ' + st;
+  });
+}
+
+function updateStatus() {
+  const el = document.getElementById('attempts-left');
+  if (gameOver) { el.innerHTML = ''; return; }
+  const rem = MAX - attempts.length;
+  el.innerHTML = `ATTEMPTS: <span>${rem}</span>`;
+}
+
+function renderInput() {
+  const row = attempts.length;
+  for (let c = 0; c < 5; c++) {
+    const tile = document.getElementById(`t${row}${c}`);
+    if (!tile) return;
+    const ch = input[c] || '';
+    if (tile.textContent !== ch) {
+      tile.textContent = ch;
+      if (ch) { tile.classList.add('pop'); setTimeout(() => tile.classList.remove('pop'), 120); }
+    }
+  }
+}
+
+function showMsg(msg, type = '', duration = 2200) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' ' + type : '');
+  if (duration > 0) setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function checkGuess(guess) {
+  const result = [];
+  const sl = [...secret], gl = [...guess];
+  for (let i = 0; i < 5; i++) {
+    if (gl[i] === sl[i]) { result.push([gl[i], 'correct']); sl[i] = null; gl[i] = null; }
+    else result.push([guess[i], null]);
+  }
+  for (let i = 0; i < 5; i++) {
+    if (result[i][1] === null) {
+      const idx = sl.indexOf(guess[i]);
+      result[i] = idx !== -1 ? [guess[i], 'present'] && (sl[idx] = null, [guess[i], 'present']) : [guess[i], 'absent'];
+    }
+  }
+  return result;
+}
+
+async function submitGuess() {
+  if (gameOver || locked) return;
+  if (input.length < 5) {
+    const row = document.getElementById('row-' + attempts.length);
+    row && row.querySelectorAll('.tile').forEach(t => { t.classList.add('shake'); setTimeout(() => t.classList.remove('shake'), 400); });
+    showMsg('need 5 letters', '', 1500);
+    return;
+  }
+  locked = true;
+  const guess = input;
+  const result = checkGuess(guess);
+  attempts.push(result);
+  input = '';
+
+  await revealRow(attempts.length - 1, result);
+  highlightActiveRow();
+  updateStatus();
+
+  const won = result.every(([, s]) => s === 'correct');
+  if (won) {
+    gameOver = true;
+    const msgs = ['GENIUS!', 'FLAWLESS!', 'EXCELLENT!', 'GREAT JOB!', 'NICE ONE!', 'PHEW!'];
+    showMsg(msgs[Math.min(attempts.length - 1, 5)], 'win', 0);
+    const row = document.getElementById('row-' + (attempts.length - 1));
+    row && row.querySelectorAll('.tile').forEach((t, i) => setTimeout(() => t.classList.add('bounce'), i * 90));
+  } else if (attempts.length >= MAX) {
+    gameOver = true;
+    showMsg('ANSWER: ' + secret, 'lose', 0);
+  }
+  locked = false;
+}
+
+function revealRow(rowIndex, result) {
+  return new Promise(resolve => {
+    const priority = { correct: 3, present: 2, absent: 1 };
+    result.forEach(([letter, status], c) => {
+      setTimeout(() => {
+        const tile = document.getElementById(`t${rowIndex}${c}`);
+        if (!tile) return;
+        tile.classList.add('flip');
+        setTimeout(() => { tile.classList.remove('flip'); tile.classList.add(status); }, 210);
+        const prev = keyStates[letter];
+        if (!prev || (priority[status] || 0) > (priority[prev] || 0)) keyStates[letter] = status;
+      }, c * 130);
+    });
+    setTimeout(() => { updateKeyboard(); resolve(); }, 5 * 130 + 320);
+  });
+}
+
+function handleKey(k) {
+  if (gameOver || locked) return;
+  if (k === 'ENTER') { submitGuess(); return; }
+  if (k === '⌫' || k === 'Backspace') { input = input.slice(0, -1); renderInput(); return; }
+  if (/^[A-Za-z]$/.test(k) && input.length < 5) { input += k.toUpperCase(); renderInput(); }
+}
+
+function newGame() {
+  secret = pickWord();
+  attempts = []; input = ''; gameOver = false; keyStates = {}; locked = false;
+  document.getElementById('question-text').textContent = WORDS[secret];
+  document.getElementById('status-msg').className = '';
+  buildBoard();
+  buildKeyboard();
+  updateStatus();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Enter') handleKey('ENTER');
+  else if (e.key === 'Backspace') handleKey('Backspace');
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key);
+});
+
+newGame();
+</script>
+</body>
+</html>
