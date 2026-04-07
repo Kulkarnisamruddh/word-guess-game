@@ -1,7 +1,10 @@
  Word Guess Game
+ 
 A browser-based 5-letter word guessing game inspired by Wordle — built with pure HTML, CSS, and JavaScript. No frameworks, no installs, just open and play.
 🎮 Live Demo
+
 https://word-guess-game-brown-ten.vercel.app/
+
 🕹️ How to Play
 
 You have 6 attempts to guess the secret 5-letter word
@@ -21,7 +24,10 @@ Vanilla JavaScript
 
 🚀 Run Locally
 Just download index.html and open it in any browser. That's it.
+
+
 📁 Project Structure
+
 word-guess-game/
 └── index.html
 └── WORDLIST.py
